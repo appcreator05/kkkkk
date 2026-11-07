@@ -269,6 +269,11 @@ public class MainActivity extends AppCompatActivity {
                 params.addRule(RelativeLayout.CENTER_HORIZONTAL);
                 adMobBannerView.setLayoutParams(params);
 
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    adMobBannerView.setElevation(100f);
+                    adMobBannerView.setTranslationZ(100f);
+                }
+
                 rootLayout.addView(adMobBannerView);
                 adMobBannerView.bringToFront();
 
@@ -498,12 +503,22 @@ public class MainActivity extends AppCompatActivity {
                 isVideoFullscreen = true;
 
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-                if (adMobBannerView != null) adMobBannerView.setVisibility(View.GONE);
 
                 fullscreenContainer.addView(customVideoView, new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
                 fullscreenContainer.setVisibility(View.VISIBLE);
                 fullscreenContainer.bringToFront();
+
+                // Keep banner ad visible as an overlay over the fullscreen video
+                if (adMobBannerView != null && adsEnabled) {
+                    adMobBannerView.setVisibility(View.VISIBLE);
+                    adMobBannerView.bringToFront();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        adMobBannerView.setElevation(100f);
+                        adMobBannerView.setTranslationZ(100f);
+                    }
+                }
+
                 hideSystemUI();
             }
 
@@ -518,7 +533,16 @@ public class MainActivity extends AppCompatActivity {
                 if (customViewCallback != null) customViewCallback.onCustomViewHidden();
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 hideSystemUI();
-                if (adMobBannerView != null && adsEnabled) adMobBannerView.setVisibility(View.VISIBLE);
+
+                // Keep banner ad visible and on top
+                if (adMobBannerView != null && adsEnabled) {
+                    adMobBannerView.setVisibility(View.VISIBLE);
+                    adMobBannerView.bringToFront();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        adMobBannerView.setElevation(100f);
+                        adMobBannerView.setTranslationZ(100f);
+                    }
+                }
             }
         });
 

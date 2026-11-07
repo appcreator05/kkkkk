@@ -278,11 +278,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Persistent AdMob Bottom Banner Ad (Loaded from Firebase RTDB) */}
-      {!isVideoFullscreen && !isFullscreen && adMobConfig.adsEnabled && (
+      {/* Persistent AdMob Bottom Banner Ad (Loaded from Firebase RTDB) - Always visible as overlay even during fullscreen video */}
+      {adMobConfig.adsEnabled && (
         <AdMobBanner
           adUnitId={adMobConfig.bannerAdUnitId}
           enabled={adMobConfig.adsEnabled}
+          isOverlay={isVideoFullscreen || isFullscreen}
         />
       )}
 

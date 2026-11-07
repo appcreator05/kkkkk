@@ -4,9 +4,10 @@ import { ExternalLink } from 'lucide-react';
 interface AdMobBannerProps {
   adUnitId: string;
   enabled?: boolean;
+  isOverlay?: boolean;
 }
 
-export const AdMobBanner: React.FC<AdMobBannerProps> = ({ adUnitId, enabled = true }) => {
+export const AdMobBanner: React.FC<AdMobBannerProps> = ({ adUnitId, enabled = true, isOverlay = false }) => {
   // If ads are disabled in Firebase RTDB, don't render
   if (!enabled) return null;
 
@@ -35,7 +36,11 @@ export const AdMobBanner: React.FC<AdMobBannerProps> = ({ adUnitId, enabled = tr
   return (
     <div
       id="admob-bottom-banner"
-      className="w-full bg-[#0a0d14] border-t border-[#1a2233] shadow-2xl flex items-center justify-center px-2 sm:px-4 py-1 z-40 relative select-none"
+      className={`w-full bg-[#0a0d14]/95 border-t border-[#1a2233] shadow-2xl flex items-center justify-center px-2 sm:px-4 py-1 select-none transition-all ${
+        isOverlay
+          ? 'fixed bottom-0 left-0 right-0 z-[99999] backdrop-blur-md'
+          : 'z-40 relative'
+      }`}
       style={{ minHeight: '52px' }}
     >
       {/* Standard Google AdMob Mobile Banner (320x50 standard banner unit) */}
