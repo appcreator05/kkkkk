@@ -355,6 +355,14 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "Ad dismissed. Next random rewarded video ad in " + (nextRewardedIntervalMs / 60000.0) + " min");
                         executePendingNavigation();
                         hideSystemUI();
+                        if (isVideoFullscreen && adMobBannerView != null && adsEnabled) {
+                            adMobBannerView.setVisibility(View.VISIBLE);
+                            adMobBannerView.bringToFront();
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                adMobBannerView.setElevation(100f);
+                                adMobBannerView.setTranslationZ(100f);
+                            }
+                        }
                         preloadRewardedVideoAd();
                     }
 
@@ -409,7 +417,7 @@ public class MainActivity extends AppCompatActivity {
     private void checkAndShowPeriodicRewarded() {
         long now = System.currentTimeMillis();
         if (rewardedAdUnitId == null || rewardedAdUnitId.trim().isEmpty() ||
-                now - lastRewardedShownTime < nextRewardedIntervalMs || isOffline || isVideoFullscreen || !adsEnabled) {
+                now - lastRewardedShownTime < nextRewardedIntervalMs || isOffline || !adsEnabled) {
             return;
         }
 

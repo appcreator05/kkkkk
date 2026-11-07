@@ -177,6 +177,7 @@ export default function App() {
   }, []);
 
   // 7. Automatic Rewarded Video Ad timer (random interval between 10 to 15 minutes for organic bot protection)
+  // 7. Automatic Rewarded Video Ad timer (random interval between 10 to 15 minutes, triggers even during fullscreen video)
   useEffect(() => {
     if (!adMobConfig.adsEnabled || !adMobConfig.rewardedAdUnitId) return;
 
@@ -188,7 +189,7 @@ export default function App() {
       const nextDelay = getRandomIntervalMs();
       console.log(`[AdMob] Next random rewarded video ad scheduled in ${(nextDelay / 60000).toFixed(1)} minutes`);
       timeoutId = setTimeout(() => {
-        if (!isOffline && !isVideoFullscreen && document.visibilityState === 'visible') {
+        if (!isOffline && document.visibilityState === 'visible') {
           setShowRewarded(true);
         }
         scheduleNextRewardedAd();
@@ -198,7 +199,7 @@ export default function App() {
     scheduleNextRewardedAd();
 
     return () => clearTimeout(timeoutId);
-  }, [adMobConfig.adsEnabled, adMobConfig.rewardedAdUnitId, isOffline, isVideoFullscreen]);
+  }, [adMobConfig.adsEnabled, adMobConfig.rewardedAdUnitId, isOffline]);
 
   // Dismiss Rewarded Video Ad
   const handleRewardedClose = () => {
