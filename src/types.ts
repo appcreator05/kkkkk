@@ -4,7 +4,9 @@ export interface AdMobConfig {
   interstitialAdUnitId: string;
   rewardedAdUnitId: string;
   adsEnabled: boolean;
-  interstitialIntervalMinutes: number;
+  rewardedIntervalMinutes: number; // 10 to 15 minutes automatic timer
+  interstitialPostCount: number; // 10 posts open threshold
+  interstitialIntervalMinutes?: number;
 }
 
 export interface AndroidAdMobBridge {

@@ -73,12 +73,22 @@ public class MainActivity extends AppCompatActivity {
     // Firebase Realtime Database default URL
     public static final String FIREBASE_RTDB_URL = "https://myapps-4a8eb-default-rtdb.firebaseio.com";
 
-    // Standard AdMob Test Ad Units (fallback if RTDB node is empty)
-    private String bannerAdUnitId = "ca-app-pub-3940256099942544/6300978111";
-    private String interstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712";
-    private String rewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917";
+    // AdMob Ad Units (Loaded 100% dynamically from Firebase Realtime Database)
+    private String bannerAdUnitId = "";
+    private String interstitialAdUnitId = "";
+    private String rewardedAdUnitId = "";
     private boolean adsEnabled = true;
-    private long interstitialIntervalMs = 10 * 60 * 1000; // 10 minutes
+
+    // Random interval between 10 to 15 minutes (in milliseconds) for organic bot protection
+    private long getRandomRewardedIntervalMs() {
+        long minMs = 10 * 60 * 1000L; // 10 minutes
+        long maxMs = 15 * 60 * 1000L; // 15 minutes
+        return minMs + (long) (Math.random() * (maxMs - minMs));
+    }
+
+    private long nextRewardedIntervalMs = getRandomRewardedIntervalMs();
+    private int targetPostCountForInterstitial = 10; // Trigger interstitial every 10 posts
+    private int postClickCount = 0;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -98,16 +108,18 @@ public class MainActivity extends AppCompatActivity {
     private InterstitialAd mInterstitialAd;
     private boolean isInterstitialLoading = false;
     private boolean isRewardedLoading = false;
+    private long lastRewardedShownTime = System.currentTimeMillis();
     private long lastInterstitialShownTime = System.currentTimeMillis();
 
     private String pendingUrlToLoad = null;
     private boolean isNavigatingPostAd = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private final Runnable interstitialPeriodicChecker = new Runnable() {
+    // Automatic Rewarded Video periodic checker (every 10-15 minutes)
+    private final Runnable rewardedPeriodicChecker = new Runnable() {
         @Override
         public void run() {
-            checkAndShowPeriodicInterstitial();
+            checkAndShowPeriodicRewarded();
             handler.postDelayed(this, 30 * 1000);
         }
     };
@@ -167,8 +179,8 @@ public class MainActivity extends AppCompatActivity {
         // 4. Initialize Firebase Realtime Database & fetch AdMob Ad Unit IDs
         initFirebaseAndFetchAdUnits();
 
-        // 5. Start periodic Interstitial ad checker
-        handler.postDelayed(interstitialPeriodicChecker, 30 * 1000);
+        // 5. Start periodic automatic Rewarded Video ad checker (every 10-15 minutes)
+        handler.postDelayed(rewardedPeriodicChecker, 60 * 1000);
 
         // 6. Deep link or initial target load
         handleDeepLink(getIntent());
@@ -205,49 +217,44 @@ public class MainActivity extends AppCompatActivity {
                 public void onDataChange(@NonNull DataSnapshot snapshot) {
                     if (snapshot.exists()) {
                         String b = snapshot.child("bannerAdUnitId").getValue(String.class);
-                        if (b != null && !b.isEmpty()) bannerAdUnitId = b;
+                        if (b != null) bannerAdUnitId = b.trim();
 
                         String i = snapshot.child("interstitialAdUnitId").getValue(String.class);
-                        if (i != null && !i.isEmpty()) interstitialAdUnitId = i;
+                        if (i != null) interstitialAdUnitId = i.trim();
 
                         String r = snapshot.child("rewardedAdUnitId").getValue(String.class);
-                        if (r != null && !r.isEmpty()) rewardedAdUnitId = r;
+                        if (r != null) rewardedAdUnitId = r.trim();
 
                         Boolean enabled = snapshot.child("adsEnabled").getValue(Boolean.class);
                         if (enabled != null) adsEnabled = enabled;
 
-                        Long intervalMin = snapshot.child("interstitialIntervalMinutes").getValue(Long.class);
-                        if (intervalMin != null && intervalMin > 0) {
-                            interstitialIntervalMs = intervalMin * 60 * 1000;
+                        Long postCountTarget = snapshot.child("interstitialPostCount").getValue(Long.class);
+                        if (postCountTarget != null && postCountTarget > 0) {
+                            targetPostCountForInterstitial = postCountTarget.intValue();
                         }
 
-                        Log.d(TAG, "AdMob config loaded from Firebase RTDB: banner=" + bannerAdUnitId);
+                        Log.d(TAG, "AdMob live config received from Firebase RTDB: banner=" + bannerAdUnitId +
+                                ", interstitial=" + interstitialAdUnitId + ", rewarded=" + rewardedAdUnitId);
                     }
 
-                    // Reload/Attach Banner Ad with updated Ad Unit ID
-                    setupAdMobBanner();
-                    preloadInterstitialAd();
-                    preloadRewardedVideoAd();
+                    // Attach / Preload ads only when valid Ad Unit IDs are provided by Firebase
+                    if (bannerAdUnitId != null && !bannerAdUnitId.isEmpty()) setupAdMobBanner();
+                    if (interstitialAdUnitId != null && !interstitialAdUnitId.isEmpty()) preloadInterstitialAd();
+                    if (rewardedAdUnitId != null && !rewardedAdUnitId.isEmpty()) preloadRewardedVideoAd();
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError error) {
                     Log.w(TAG, "Firebase RTDB read cancelled: " + error.getMessage());
-                    setupAdMobBanner();
-                    preloadInterstitialAd();
-                    preloadRewardedVideoAd();
                 }
             });
         } catch (Exception e) {
             Log.e(TAG, "Firebase RTDB init error: " + e.getMessage());
-            setupAdMobBanner();
-            preloadInterstitialAd();
-            preloadRewardedVideoAd();
         }
     }
 
     private void setupAdMobBanner() {
-        if (!adsEnabled) {
+        if (!adsEnabled || bannerAdUnitId == null || bannerAdUnitId.trim().isEmpty()) {
             if (adMobBannerView != null) adMobBannerView.setVisibility(View.GONE);
             return;
         }
@@ -287,7 +294,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void preloadInterstitialAd() {
-        if (!adsEnabled || isInterstitialLoading || mInterstitialAd != null) return;
+        if (!adsEnabled || isInterstitialLoading || mInterstitialAd != null || interstitialAdUnitId == null || interstitialAdUnitId.trim().isEmpty()) return;
         isInterstitialLoading = true;
 
         AdRequest adRequest = new AdRequest.Builder().build();
@@ -303,6 +310,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onAdDismissedFullScreenContent() {
                         mInterstitialAd = null;
                         lastInterstitialShownTime = System.currentTimeMillis();
+                        executePendingNavigation();
                         hideSystemUI();
                         preloadInterstitialAd();
                     }
@@ -310,6 +318,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                         mInterstitialAd = null;
+                        executePendingNavigation();
                         preloadInterstitialAd();
                     }
                 });
@@ -326,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void preloadRewardedVideoAd() {
-        if (!adsEnabled || isRewardedLoading || mRewardedAd != null) return;
+        if (!adsEnabled || isRewardedLoading || mRewardedAd != null || rewardedAdUnitId == null || rewardedAdUnitId.trim().isEmpty()) return;
         isRewardedLoading = true;
 
         AdRequest adRequest = new AdRequest.Builder().build();
@@ -341,13 +350,19 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onAdDismissedFullScreenContent() {
                         mRewardedAd = null;
+                        lastRewardedShownTime = System.currentTimeMillis();
+                        nextRewardedIntervalMs = getRandomRewardedIntervalMs();
+                        Log.d(TAG, "Ad dismissed. Next random rewarded video ad in " + (nextRewardedIntervalMs / 60000.0) + " min");
                         executePendingNavigation();
+                        hideSystemUI();
                         preloadRewardedVideoAd();
                     }
 
                     @Override
                     public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                         mRewardedAd = null;
+                        lastRewardedShownTime = System.currentTimeMillis();
+                        nextRewardedIntervalMs = getRandomRewardedIntervalMs();
                         executePendingNavigation();
                         preloadRewardedVideoAd();
                     }
@@ -374,34 +389,37 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            if (mRewardedAd != null) {
-                mRewardedAd.show(MainActivity.this, rewardItem -> Log.d(TAG, "AdMob reward earned: " + rewardItem.getAmount()));
-                return;
+            postClickCount++;
+            Log.d(TAG, "Post clicked. Count: " + postClickCount + " / " + targetPostCountForInterstitial);
+
+            // Show Rewarded Interstitial / Interstitial on every 10th post
+            if (postClickCount >= targetPostCountForInterstitial) {
+                postClickCount = 0;
+                if (mInterstitialAd != null) {
+                    mInterstitialAd.show(MainActivity.this);
+                    return;
+                }
             }
 
-            // Fallback: If rewarded ad isn't ready, try interstitial fallback or navigate directly after short timeout
-            if (mInterstitialAd != null) {
-                mInterstitialAd.show(MainActivity.this);
-                return;
-            }
-
-            Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show();
+            // Posts 1 to 9 open immediately without any ad interruption
             executePendingNavigation();
-            preloadRewardedVideoAd();
         });
     }
 
-    private void checkAndShowPeriodicInterstitial() {
+    private void checkAndShowPeriodicRewarded() {
         long now = System.currentTimeMillis();
-        if (now - lastInterstitialShownTime < interstitialIntervalMs || isOffline || isVideoFullscreen || !adsEnabled) {
+        if (rewardedAdUnitId == null || rewardedAdUnitId.trim().isEmpty() ||
+                now - lastRewardedShownTime < nextRewardedIntervalMs || isOffline || isVideoFullscreen || !adsEnabled) {
             return;
         }
 
-        if (mInterstitialAd != null) {
-            mInterstitialAd.show(this);
-            lastInterstitialShownTime = System.currentTimeMillis();
+        if (mRewardedAd != null) {
+            mRewardedAd.show(this, rewardItem -> Log.d(TAG, "AdMob random periodic reward earned: " + rewardItem.getAmount()));
+            lastRewardedShownTime = System.currentTimeMillis();
+            nextRewardedIntervalMs = getRandomRewardedIntervalMs();
+            Log.d(TAG, "Next random rewarded video ad scheduled in " + (nextRewardedIntervalMs / 60000.0) + " minutes");
         } else {
-            preloadInterstitialAd();
+            preloadRewardedVideoAd();
         }
     }
 

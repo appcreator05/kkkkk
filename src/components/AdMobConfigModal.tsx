@@ -20,7 +20,8 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
   const [bannerId, setBannerId] = useState(config.bannerAdUnitId);
   const [interstitialId, setInterstitialId] = useState(config.interstitialAdUnitId);
   const [rewardedId, setRewardedId] = useState(config.rewardedAdUnitId);
-  const [intervalMin, setIntervalMin] = useState(config.interstitialIntervalMinutes || 10);
+  const [rewardedIntervalMin, setRewardedIntervalMin] = useState(config.rewardedIntervalMinutes || 12);
+  const [postThreshold, setPostThreshold] = useState(config.interstitialPostCount || 10);
   const [adsEnabled, setAdsEnabled] = useState(config.adsEnabled);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -39,7 +40,9 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
         bannerAdUnitId: bannerId.trim(),
         interstitialAdUnitId: interstitialId.trim(),
         rewardedAdUnitId: rewardedId.trim(),
-        interstitialIntervalMinutes: Number(intervalMin),
+        rewardedIntervalMinutes: Number(rewardedIntervalMin),
+        interstitialPostCount: Number(postThreshold),
+        interstitialIntervalMinutes: 10,
         adsEnabled,
       });
       setSavedSuccess(true);
@@ -103,7 +106,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
               type="text"
               value={appId}
               onChange={(e) => setAppId(e.target.value)}
-              placeholder="ca-app-pub-3940256099942544~3347511713"
+              placeholder="ca-app-pub-3440654346799700~9005154179"
               className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
             />
           </div>
@@ -116,7 +119,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
               type="text"
               value={bannerId}
               onChange={(e) => setBannerId(e.target.value)}
-              placeholder="ca-app-pub-3940256099942544/6300978111"
+              placeholder="ca-app-pub-3440654346799700/..."
               className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
             />
           </div>
@@ -129,7 +132,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
               type="text"
               value={interstitialId}
               onChange={(e) => setInterstitialId(e.target.value)}
-              placeholder="ca-app-pub-3940256099942544/1033173712"
+              placeholder="ca-app-pub-3440654346799700/..."
               className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
             />
           </div>
@@ -142,7 +145,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
               type="text"
               value={rewardedId}
               onChange={(e) => setRewardedId(e.target.value)}
-              placeholder="ca-app-pub-3940256099942544/5224354917"
+              placeholder="ca-app-pub-3440654346799700/..."
               className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
             />
           </div>
@@ -150,28 +153,47 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-slate-300 font-medium mb-1">
-                Interstitial Interval (min)
+                Rewarded Video (10-15m)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="60"
+                value={rewardedIntervalMin}
+                onChange={(e) => setRewardedIntervalMin(Number(e.target.value))}
+                className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
+              />
+              <span className="text-[10px] text-slate-400">Timer in minutes</span>
+            </div>
+            <div>
+              <label className="block text-slate-300 font-medium mb-1">
+                Interstitial on Posts
               </label>
               <input
                 type="number"
                 min="1"
-                max="60"
-                value={intervalMin}
-                onChange={(e) => setIntervalMin(Number(e.target.value))}
+                max="50"
+                value={postThreshold}
+                onChange={(e) => setPostThreshold(Number(e.target.value))}
                 className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
               />
+              <span className="text-[10px] text-slate-400">Trigger every 10 posts</span>
             </div>
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2 cursor-pointer pb-2">
-                <input
-                  type="checkbox"
-                  checked={adsEnabled}
-                  onChange={(e) => setAdsEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                />
-                <span className="text-slate-300 font-medium">Ads Enabled</span>
-              </label>
-            </div>
+          </div>
+
+          <div className="pt-1">
+            <label className="flex items-center gap-2 cursor-pointer pb-1">
+              <input
+                type="checkbox"
+                checked={adsEnabled}
+                onChange={(e) => setAdsEnabled(e.target.checked)}
+                className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+              />
+              <span className="text-slate-300 font-medium">Ads Enabled</span>
+            </label>
+            <p className="text-[10px] text-slate-400">
+              Rewarded video triggers organically every 10-15 min. Interstitial triggers only after 10 posts. This prevents bot detection and protects your AdMob account.
+            </p>
           </div>
 
           {savedSuccess && (

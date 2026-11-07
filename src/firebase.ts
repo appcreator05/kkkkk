@@ -17,13 +17,15 @@ export const firebaseConfig = {
 export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const rtdb = getDatabase(firebaseApp);
 
-// Standard Google AdMob Official Test Ad Unit IDs (used as default fallback if RTDB is not yet set)
+// Live AdMob Config - Unit IDs are 100% controlled from Firebase Realtime Database (/admob)
 export const DEFAULT_ADMOB_CONFIG: AdMobConfig = {
-  appId: 'ca-app-pub-3940256099942544~3347511713',
-  bannerAdUnitId: 'ca-app-pub-3940256099942544/6300978111',
-  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712',
-  rewardedAdUnitId: 'ca-app-pub-3940256099942544/5224354917',
+  appId: 'ca-app-pub-3440654346799700~9005154179',
+  bannerAdUnitId: '',
+  interstitialAdUnitId: '',
+  rewardedAdUnitId: '',
   adsEnabled: true,
+  rewardedIntervalMinutes: 12, // 10-15 minute organic automatic trigger
+  interstitialPostCount: 10, // Shows interstitial on every 10th post
   interstitialIntervalMinutes: 10,
 };
 
@@ -64,6 +66,10 @@ export function subscribeToAdMobConfig(
               : data.enabled !== undefined
               ? Boolean(data.enabled)
               : true,
+          rewardedIntervalMinutes:
+            Number(data.rewardedIntervalMinutes || data.rewarded_interval_minutes) || 12,
+          interstitialPostCount:
+            Number(data.interstitialPostCount || data.interstitial_post_count) || 10,
           interstitialIntervalMinutes:
             Number(data.interstitialIntervalMinutes || data.interstitial_interval_minutes) || 10,
         };
@@ -100,6 +106,10 @@ export function subscribeToAdMobConfig(
                     : true,
                 interstitialIntervalMinutes:
                   Number(altData.interstitialIntervalMinutes || altData.interstitial_interval_minutes) || 10,
+                rewardedIntervalMinutes:
+                  Number(altData.rewardedIntervalMinutes || altData.rewarded_interval_minutes) || 12,
+                interstitialPostCount:
+                  Number(altData.interstitialPostCount || altData.interstitial_post_count) || 10,
               };
               onConfigUpdate(mergedAlt, 'rtdb');
             } else {
@@ -131,6 +141,8 @@ export async function saveAdMobConfigToRTDB(config: Partial<AdMobConfig>): Promi
     interstitialAdUnitId: config.interstitialAdUnitId ?? DEFAULT_ADMOB_CONFIG.interstitialAdUnitId,
     rewardedAdUnitId: config.rewardedAdUnitId ?? DEFAULT_ADMOB_CONFIG.rewardedAdUnitId,
     adsEnabled: config.adsEnabled ?? true,
+    rewardedIntervalMinutes: config.rewardedIntervalMinutes ?? 12,
+    interstitialPostCount: config.interstitialPostCount ?? 10,
     interstitialIntervalMinutes: config.interstitialIntervalMinutes ?? 10,
     updatedAt: new Date().toISOString(),
   });

@@ -25,12 +25,13 @@ export default function App() {
   const [configSource, setConfigSource] = useState<'rtdb' | 'default'>('default');
   const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
 
-  // Fullscreen Rewarded Video Ad state: triggers on initial open and every page transition
-  const [showRewarded, setShowRewarded] = useState<boolean>(true);
+  // Fullscreen Rewarded Video Ad state: triggers automatically every 10-15 minutes (organic pacing)
+  const [showRewarded, setShowRewarded] = useState<boolean>(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
-  // Interstitial Ad state: triggers automatically based on interval from Firebase RTDB
+  // Interstitial Ad state: triggers automatically on every 10th post opened
   const [showInterstitial, setShowInterstitial] = useState<boolean>(false);
+  const [postClickCount, setPostClickCount] = useState<number>(0);
 
   // Chrome Custom Tab state for external / extra links
   const [customTabUrl, setCustomTabUrl] = useState<string | null>(null);
@@ -71,17 +72,23 @@ export default function App() {
     const handleMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return;
 
-      // Internal Blog navigation -> Show rewarded video ad and load
+      // Internal Blog navigation -> Shows Interstitial on every 10th post; posts 1-9 open instantly!
       if (event.data.type === 'HDSKAY_PAGE_NAV') {
         const target = event.data.targetUrl;
         if (target) {
           setPendingUrl(target);
-          if (adMobConfig.adsEnabled) {
-            setShowRewarded(true);
-          } else {
-            setCurrentUrl(target);
-            setIsLoading(true);
-          }
+          setPostClickCount((prev) => {
+            const next = prev + 1;
+            const threshold = adMobConfig.interstitialPostCount || 10;
+            if (adMobConfig.adsEnabled && Boolean(adMobConfig.interstitialAdUnitId) && next >= threshold) {
+              setShowInterstitial(true);
+              return 0; // Reset counter after 10 posts
+            } else {
+              setCurrentUrl(target);
+              setIsLoading(true);
+              return next;
+            }
+          });
         }
       }
 
@@ -169,23 +176,38 @@ export default function App() {
     };
   }, []);
 
-  // 7. Dynamic Interstitial Ad Interval (loaded from Firebase Realtime Database)
+  // 7. Automatic Rewarded Video Ad timer (random interval between 10 to 15 minutes for organic bot protection)
   useEffect(() => {
-    if (!adMobConfig.adsEnabled) return;
+    if (!adMobConfig.adsEnabled || !adMobConfig.rewardedAdUnitId) return;
 
-    const intervalMs = (adMobConfig.interstitialIntervalMinutes || 10) * 60 * 1000;
-    const interval = setInterval(() => {
-      if (!isOffline && !isVideoFullscreen) {
-        setShowInterstitial(true);
-      }
-    }, intervalMs);
+    // Pick random interval between 10 and 15 minutes (in ms)
+    const getRandomIntervalMs = () => (10 + Math.random() * 5) * 60 * 1000;
 
-    return () => clearInterval(interval);
-  }, [adMobConfig.adsEnabled, adMobConfig.interstitialIntervalMinutes, isOffline, isVideoFullscreen]);
+    let timeoutId: NodeJS.Timeout;
+    const scheduleNextRewardedAd = () => {
+      const nextDelay = getRandomIntervalMs();
+      console.log(`[AdMob] Next random rewarded video ad scheduled in ${(nextDelay / 60000).toFixed(1)} minutes`);
+      timeoutId = setTimeout(() => {
+        if (!isOffline && !isVideoFullscreen && document.visibilityState === 'visible') {
+          setShowRewarded(true);
+        }
+        scheduleNextRewardedAd();
+      }, nextDelay);
+    };
 
-  // Dismiss Rewarded Video Ad and immediately load the destination page
+    scheduleNextRewardedAd();
+
+    return () => clearTimeout(timeoutId);
+  }, [adMobConfig.adsEnabled, adMobConfig.rewardedAdUnitId, isOffline, isVideoFullscreen]);
+
+  // Dismiss Rewarded Video Ad
   const handleRewardedClose = () => {
     setShowRewarded(false);
+  };
+
+  // Dismiss Interstitial Ad (after 10th post) and load the requested post
+  const handleInterstitialClose = () => {
+    setShowInterstitial(false);
     if (pendingUrl) {
       setCurrentUrl(pendingUrl);
       setPendingUrl(null);
@@ -279,7 +301,7 @@ export default function App() {
       )}
 
       {/* Persistent AdMob Bottom Banner Ad (Loaded from Firebase RTDB) - Always visible as overlay even during fullscreen video */}
-      {adMobConfig.adsEnabled && (
+      {adMobConfig.adsEnabled && Boolean(adMobConfig.bannerAdUnitId) && (
         <AdMobBanner
           adUnitId={adMobConfig.bannerAdUnitId}
           enabled={adMobConfig.adsEnabled}
@@ -300,8 +322,8 @@ export default function App() {
         onClose={() => setIsOffline(false)}
       />
 
-      {/* Fullscreen AdMob Rewarded Video Ad (shows on every page open; user skips to claim/reveal page) */}
-      {showRewarded && adMobConfig.adsEnabled && (
+      {/* Fullscreen AdMob Rewarded Video Ad (triggers randomly every 10-15 min) */}
+      {showRewarded && adMobConfig.adsEnabled && Boolean(adMobConfig.rewardedAdUnitId) && (
         <AdMobRewardedVideo
           adUnitId={adMobConfig.rewardedAdUnitId}
           enabled={adMobConfig.adsEnabled}
@@ -309,12 +331,12 @@ export default function App() {
         />
       )}
 
-      {/* Fullscreen AdMob Interstitial Ad (periodic interval based on Firebase RTDB) */}
-      {showInterstitial && adMobConfig.adsEnabled && (
+      {/* Fullscreen AdMob Interstitial Ad (triggers automatically on every 10th post open) */}
+      {showInterstitial && adMobConfig.adsEnabled && Boolean(adMobConfig.interstitialAdUnitId) && (
         <AdMobInterstitial
           adUnitId={adMobConfig.interstitialAdUnitId}
           enabled={adMobConfig.adsEnabled}
-          onClose={() => setShowInterstitial(false)}
+          onClose={handleInterstitialClose}
         />
       )}
 
