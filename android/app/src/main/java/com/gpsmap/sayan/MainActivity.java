@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "HDSKayApp";
     public static final String TARGET_URL = "https://hdskay.blogspot.com";
     public static final String FORCED_USER_AGENT =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/138.0.0.0 Safari/53";
+            "Mozilla/5.0 (Linux; Android 10; K; AppSecret123) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36";
 
     // Firebase Realtime Database default URL
     public static final String FIREBASE_RTDB_URL = "https://myapps-4a8eb-default-rtdb.firebaseio.com";
