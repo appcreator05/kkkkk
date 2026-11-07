@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "com.gpsmap.sayan"
-        minSdk 14
+        minSdk 21
         targetSdk 36
         versionCode 201
         versionName "1.5.1"
