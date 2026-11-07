@@ -4,8 +4,9 @@ export interface AdMobConfig {
   interstitialAdUnitId: string;
   rewardedAdUnitId: string;
   adsEnabled: boolean;
-  rewardedIntervalMinutes: number; // 10 to 15 minutes automatic timer
-  interstitialPostCount: number; // 10 posts open threshold
+  rewardedIntervalMinutes: number; // 10 to 15 minutes automatic random timer
+  postAdCooldownMinutes: number; // 5 minutes cooldown for post clicks
+  interstitialPostCount?: number;
   interstitialIntervalMinutes?: number;
 }
 

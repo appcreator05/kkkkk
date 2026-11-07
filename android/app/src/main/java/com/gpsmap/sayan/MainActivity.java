@@ -87,8 +87,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private long nextRewardedIntervalMs = getRandomRewardedIntervalMs();
-    private int targetPostCountForInterstitial = 10; // Trigger interstitial every 10 posts
-    private int postClickCount = 0;
+    // Post click Interstitial Cooldown: 5 minutes frequency capping
+    private long lastPostAdShownTime = 0;
+    private long postAdCooldownMs = 5 * 60 * 1000L; // 5 minutes cooldown
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -228,9 +229,9 @@ public class MainActivity extends AppCompatActivity {
                         Boolean enabled = snapshot.child("adsEnabled").getValue(Boolean.class);
                         if (enabled != null) adsEnabled = enabled;
 
-                        Long postCountTarget = snapshot.child("interstitialPostCount").getValue(Long.class);
-                        if (postCountTarget != null && postCountTarget > 0) {
-                            targetPostCountForInterstitial = postCountTarget.intValue();
+                        Long cooldownMin = snapshot.child("postAdCooldownMinutes").getValue(Long.class);
+                        if (cooldownMin != null && cooldownMin > 0) {
+                            postAdCooldownMs = cooldownMin * 60 * 1000L;
                         }
 
                         Log.d(TAG, "AdMob live config received from Firebase RTDB: banner=" + bannerAdUnitId +
@@ -397,19 +398,24 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            postClickCount++;
-            Log.d(TAG, "Post clicked. Count: " + postClickCount + " / " + targetPostCountForInterstitial);
+            long now = System.currentTimeMillis();
+            boolean shouldShowAd = (lastPostAdShownTime == 0 || (now - lastPostAdShownTime) >= postAdCooldownMs);
 
-            // Show Rewarded Interstitial / Interstitial on every 10th post
-            if (postClickCount >= targetPostCountForInterstitial) {
-                postClickCount = 0;
+            if (shouldShowAd) {
                 if (mInterstitialAd != null) {
+                    lastPostAdShownTime = now;
+                    Log.d(TAG, "Showing Interstitial on post click. Next ad available after 5-min cooldown.");
                     mInterstitialAd.show(MainActivity.this);
                     return;
+                } else {
+                    preloadInterstitialAd();
                 }
+            } else {
+                long remainingSec = (postAdCooldownMs - (now - lastPostAdShownTime)) / 1000;
+                Log.d(TAG, "Post click ad in 5-min cooldown. Remaining: " + remainingSec + "s. Opening post directly without ads.");
             }
 
-            // Posts 1 to 9 open immediately without any ad interruption
+            // During 5-minute cooldown or ad not ready: open post immediately without any ad!
             executePendingNavigation();
         });
     }
@@ -475,7 +481,14 @@ public class MainActivity extends AppCompatActivity {
             public void setBannerVisibility(final boolean visible) {
                 runOnUiThread(() -> {
                     if (adMobBannerView != null) {
-                        adMobBannerView.setVisibility((visible && !isVideoFullscreen) ? View.VISIBLE : View.GONE);
+                        adMobBannerView.setVisibility(visible ? View.VISIBLE : View.GONE);
+                        if (visible) {
+                            adMobBannerView.bringToFront();
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                adMobBannerView.setElevation(100f);
+                                adMobBannerView.setTranslationZ(100f);
+                            }
+                        }
                     }
                 });
             }
@@ -486,10 +499,17 @@ public class MainActivity extends AppCompatActivity {
                     isVideoFullscreen = isFs;
                     if (isFs) {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-                        if (adMobBannerView != null) adMobBannerView.setVisibility(View.GONE);
                     } else {
                         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-                        if (adMobBannerView != null && adsEnabled) adMobBannerView.setVisibility(View.VISIBLE);
+                    }
+                    // Keep banner ad visible and overlaying even in fullscreen video mode
+                    if (adMobBannerView != null && adsEnabled) {
+                        adMobBannerView.setVisibility(View.VISIBLE);
+                        adMobBannerView.bringToFront();
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            adMobBannerView.setElevation(100f);
+                            adMobBannerView.setTranslationZ(100f);
+                        }
                     }
                     hideSystemUI();
                 });
@@ -599,9 +619,9 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 String host = uri.getHost();
-                if (host != null && host.contains("blogspot.com")) {
+                if (host != null && (host.contains("blogspot.com") || host.contains("hdskay"))) {
                     String path = uri.getPath();
-                    if (path != null && path.matches(".*/\\d{4}/\\d{2}/.*\\.html.*")) {
+                    if (path != null && (path.endsWith(".html") || path.contains(".html") || path.contains("/search") || path.contains("/p/") || path.length() > 1)) {
                         handlePostClick(uri.toString());
                         return true;
                     }

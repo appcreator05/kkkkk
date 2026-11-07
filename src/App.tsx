@@ -29,9 +29,9 @@ export default function App() {
   const [showRewarded, setShowRewarded] = useState<boolean>(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
-  // Interstitial Ad state: triggers automatically on every 10th post opened
+  // Interstitial Ad state: triggers on post click with 5-minute cooldown (within 5 minutes, posts open instantly!)
   const [showInterstitial, setShowInterstitial] = useState<boolean>(false);
-  const [postClickCount, setPostClickCount] = useState<number>(0);
+  const [lastPostAdShownTime, setLastPostAdShownTime] = useState<number>(0);
 
   // Chrome Custom Tab state for external / extra links
   const [customTabUrl, setCustomTabUrl] = useState<string | null>(null);
@@ -72,23 +72,26 @@ export default function App() {
     const handleMessage = (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return;
 
-      // Internal Blog navigation -> Shows Interstitial on every 10th post; posts 1-9 open instantly!
+      // Internal Blog navigation -> Shows Interstitial on post click, then 5-minute cooldown where posts open instantly!
       if (event.data.type === 'HDSKAY_PAGE_NAV') {
         const target = event.data.targetUrl;
         if (target) {
-          setPendingUrl(target);
-          setPostClickCount((prev) => {
-            const next = prev + 1;
-            const threshold = adMobConfig.interstitialPostCount || 10;
-            if (adMobConfig.adsEnabled && Boolean(adMobConfig.interstitialAdUnitId) && next >= threshold) {
-              setShowInterstitial(true);
-              return 0; // Reset counter after 10 posts
-            } else {
-              setCurrentUrl(target);
-              setIsLoading(true);
-              return next;
-            }
-          });
+          const now = Date.now();
+          const cooldownMs = (adMobConfig.postAdCooldownMinutes || 5) * 60 * 1000;
+          const shouldShowAd =
+            adMobConfig.adsEnabled &&
+            Boolean(adMobConfig.interstitialAdUnitId) &&
+            (lastPostAdShownTime === 0 || now - lastPostAdShownTime >= cooldownMs);
+
+          if (shouldShowAd) {
+            setPendingUrl(target);
+            setLastPostAdShownTime(now);
+            setShowInterstitial(true);
+          } else {
+            // In 5-minute cooldown period: post opens immediately without any ad interruption
+            setCurrentUrl(target);
+            setIsLoading(true);
+          }
         }
       }
 
@@ -118,7 +121,7 @@ export default function App() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [adMobConfig.adsEnabled]);
+  }, [adMobConfig.adsEnabled, adMobConfig.interstitialAdUnitId, adMobConfig.postAdCooldownMinutes, lastPostAdShownTime]);
 
   // 4. Monitor network connectivity changes
   useEffect(() => {
@@ -206,7 +209,7 @@ export default function App() {
     setShowRewarded(false);
   };
 
-  // Dismiss Interstitial Ad (after 10th post) and load the requested post
+  // Dismiss Interstitial Ad and load the requested post (initiates 5-minute cooldown)
   const handleInterstitialClose = () => {
     setShowInterstitial(false);
     if (pendingUrl) {

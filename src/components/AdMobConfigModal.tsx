@@ -21,7 +21,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
   const [interstitialId, setInterstitialId] = useState(config.interstitialAdUnitId);
   const [rewardedId, setRewardedId] = useState(config.rewardedAdUnitId);
   const [rewardedIntervalMin, setRewardedIntervalMin] = useState(config.rewardedIntervalMinutes || 12);
-  const [postThreshold, setPostThreshold] = useState(config.interstitialPostCount || 10);
+  const [cooldownMin, setCooldownMin] = useState(config.postAdCooldownMinutes || 5);
   const [adsEnabled, setAdsEnabled] = useState(config.adsEnabled);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -41,7 +41,8 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
         interstitialAdUnitId: interstitialId.trim(),
         rewardedAdUnitId: rewardedId.trim(),
         rewardedIntervalMinutes: Number(rewardedIntervalMin),
-        interstitialPostCount: Number(postThreshold),
+        postAdCooldownMinutes: Number(cooldownMin),
+        interstitialPostCount: 10,
         interstitialIntervalMinutes: 10,
         adsEnabled,
       });
@@ -167,17 +168,17 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
             </div>
             <div>
               <label className="block text-slate-300 font-medium mb-1">
-                Interstitial on Posts
+                Post Ad Cooldown (min)
               </label>
               <input
                 type="number"
                 min="1"
-                max="50"
-                value={postThreshold}
-                onChange={(e) => setPostThreshold(Number(e.target.value))}
+                max="60"
+                value={cooldownMin}
+                onChange={(e) => setCooldownMin(Number(e.target.value))}
                 className="w-full bg-[#171f30] border border-slate-700 focus:border-amber-500 rounded-lg px-3 py-2 text-white font-mono text-[11px] outline-none"
               />
-              <span className="text-[10px] text-slate-400">Trigger every 10 posts</span>
+              <span className="text-[10px] text-slate-400">Posts open ad-free for 5 min</span>
             </div>
           </div>
 
@@ -192,7 +193,7 @@ export const AdMobConfigModal: React.FC<AdMobConfigModalProps> = ({
               <span className="text-slate-300 font-medium">Ads Enabled</span>
             </label>
             <p className="text-[10px] text-slate-400">
-              Rewarded video triggers organically every 10-15 min. Interstitial triggers only after 10 posts. This prevents bot detection and protects your AdMob account.
+              Rewarded video triggers automatically every 10-15 min. Post click triggers ad with a 5-minute cooldown (all posts within 5 minutes open immediately with zero ads). Banner stays persistent even during video fullscreen.
             </p>
           </div>
 

@@ -25,7 +25,8 @@ export const DEFAULT_ADMOB_CONFIG: AdMobConfig = {
   rewardedAdUnitId: '',
   adsEnabled: true,
   rewardedIntervalMinutes: 12, // 10-15 minute organic automatic trigger
-  interstitialPostCount: 10, // Shows interstitial on every 10th post
+  postAdCooldownMinutes: 5, // 5 minutes cooldown for post clicks
+  interstitialPostCount: 10,
   interstitialIntervalMinutes: 10,
 };
 
@@ -68,6 +69,8 @@ export function subscribeToAdMobConfig(
               : true,
           rewardedIntervalMinutes:
             Number(data.rewardedIntervalMinutes || data.rewarded_interval_minutes) || 12,
+          postAdCooldownMinutes:
+            Number(data.postAdCooldownMinutes || data.post_ad_cooldown_minutes) || 5,
           interstitialPostCount:
             Number(data.interstitialPostCount || data.interstitial_post_count) || 10,
           interstitialIntervalMinutes:
@@ -108,6 +111,8 @@ export function subscribeToAdMobConfig(
                   Number(altData.interstitialIntervalMinutes || altData.interstitial_interval_minutes) || 10,
                 rewardedIntervalMinutes:
                   Number(altData.rewardedIntervalMinutes || altData.rewarded_interval_minutes) || 12,
+                postAdCooldownMinutes:
+                  Number(altData.postAdCooldownMinutes || altData.post_ad_cooldown_minutes) || 5,
                 interstitialPostCount:
                   Number(altData.interstitialPostCount || altData.interstitial_post_count) || 10,
               };
@@ -142,6 +147,7 @@ export async function saveAdMobConfigToRTDB(config: Partial<AdMobConfig>): Promi
     rewardedAdUnitId: config.rewardedAdUnitId ?? DEFAULT_ADMOB_CONFIG.rewardedAdUnitId,
     adsEnabled: config.adsEnabled ?? true,
     rewardedIntervalMinutes: config.rewardedIntervalMinutes ?? 12,
+    postAdCooldownMinutes: config.postAdCooldownMinutes ?? 5,
     interstitialPostCount: config.interstitialPostCount ?? 10,
     interstitialIntervalMinutes: config.interstitialIntervalMinutes ?? 10,
     updatedAt: new Date().toISOString(),
