@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WifiOff, RotateCcw, AlertTriangle } from 'lucide-react';
+import { WifiOff, RotateCcw } from 'lucide-react';
 
 interface NoInternetPopupProps {
   isOpen: boolean;

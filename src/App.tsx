@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StartIoBanner } from './components/StartIoBanner';
-import { StartIoRewardedVideo } from './components/StartIoRewardedVideo';
-import { StartIoInterstitial } from './components/StartIoInterstitial';
+import { AdMobBanner } from './components/AdMobBanner';
+import { AdMobRewardedVideo } from './components/AdMobRewardedVideo';
+import { AdMobInterstitial } from './components/AdMobInterstitial';
+import { AdMobConfigModal } from './components/AdMobConfigModal';
 import { NoInternetPopup } from './components/NoInternetPopup';
 import { CustomTabModal } from './components/CustomTabModal';
-import { Maximize2, Minimize2, WifiOff } from 'lucide-react';
+import { Maximize2, Minimize2, WifiOff, Database } from 'lucide-react';
+import { subscribeToAdMobConfig, DEFAULT_ADMOB_CONFIG } from './firebase';
+import type { AdMobConfig } from './types';
+import './types';
 
-const START_IO_APP_ID = '203877183';
 const TARGET_URL = 'https://hdskay.blogspot.com';
 const REQUIRED_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/138.0.0.0 Safari/53';
@@ -17,11 +20,16 @@ export default function App() {
   );
   const [isLoading, setIsLoading] = useState(true);
 
+  // Firebase Realtime Database AdMob configuration
+  const [adMobConfig, setAdMobConfig] = useState<AdMobConfig>(DEFAULT_ADMOB_CONFIG);
+  const [configSource, setConfigSource] = useState<'rtdb' | 'default'>('default');
+  const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
+
   // Fullscreen Rewarded Video Ad state: triggers on initial open and every page transition
   const [showRewarded, setShowRewarded] = useState<boolean>(true);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 
-  // Interstitial Ad state: triggers automatically every 10 minutes
+  // Interstitial Ad state: triggers automatically based on interval from Firebase RTDB
   const [showInterstitial, setShowInterstitial] = useState<boolean>(false);
 
   // Chrome Custom Tab state for external / extra links
@@ -39,7 +47,18 @@ export default function App() {
   // Splash Screen preview state
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  // Auto hide splash screen after 2.5 seconds
+  // 1. Subscribe to Firebase Realtime Database for dynamic AdMob ad units
+  useEffect(() => {
+    const unsubscribe = subscribeToAdMobConfig((config, source) => {
+      setAdMobConfig(config);
+      setConfigSource(source);
+      console.log(`[AdMob] Config loaded from ${source}:`, config);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Auto hide splash screen after 2.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
@@ -47,21 +66,26 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for navigation & Custom Tab messages from the proxied iframe
+  // 3. Listen for navigation & Custom Tab messages from the proxied iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (!event.data) return;
+      if (!event.data || typeof event.data !== 'object') return;
 
-      // 1. Internal Blog navigation -> Show rewarded video ad and load
+      // Internal Blog navigation -> Show rewarded video ad and load
       if (event.data.type === 'HDSKAY_PAGE_NAV') {
         const target = event.data.targetUrl;
         if (target) {
           setPendingUrl(target);
-          setShowRewarded(true);
+          if (adMobConfig.adsEnabled) {
+            setShowRewarded(true);
+          } else {
+            setCurrentUrl(target);
+            setIsLoading(true);
+          }
         }
       }
 
-      // 2. Extra / External link click -> Open in Chrome Custom Tab!
+      // Extra / External link click -> Open in Chrome Custom Tab
       if (event.data.type === 'HDSKAY_OPEN_CUSTOM_TAB') {
         const externalTarget = event.data.targetUrl;
         if (externalTarget) {
@@ -69,7 +93,7 @@ export default function App() {
         }
       }
 
-      // 3. HTML5 Video Fullscreen state change
+      // HTML5 Video Fullscreen state change
       if (event.data.type === 'HDSKAY_FULLSCREEN_CHANGE') {
         const isFs = Boolean(event.data.isFullscreen);
         setIsVideoFullscreen(isFs);
@@ -87,9 +111,9 @@ export default function App() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [adMobConfig.adsEnabled]);
 
-  // Monitor network connectivity changes
+  // 4. Monitor network connectivity changes
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
@@ -103,7 +127,7 @@ export default function App() {
     };
   }, []);
 
-  // Monitor Fullscreen changes
+  // 5. Monitor Fullscreen changes
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement));
@@ -113,7 +137,7 @@ export default function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Keep Screen Awake (Wake Lock API) whenever the app is open
+  // 6. Keep Screen Awake (Wake Lock API) whenever the app is open
   useEffect(() => {
     let wakeLockSentinel: any = null;
 
@@ -123,7 +147,7 @@ export default function App() {
           wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
         }
       } catch {
-        // Can be ignored if window is minimized or not allowed
+        // Ignored
       }
     };
 
@@ -145,14 +169,19 @@ export default function App() {
     };
   }, []);
 
-  // 10-Minute Interstitial Ad Interval (10 * 60 * 1000 = 600,000 ms)
+  // 7. Dynamic Interstitial Ad Interval (loaded from Firebase Realtime Database)
   useEffect(() => {
+    if (!adMobConfig.adsEnabled) return;
+
+    const intervalMs = (adMobConfig.interstitialIntervalMinutes || 10) * 60 * 1000;
     const interval = setInterval(() => {
-      setShowInterstitial(true);
-    }, 10 * 60 * 1000);
+      if (!isOffline && !isVideoFullscreen) {
+        setShowInterstitial(true);
+      }
+    }, intervalMs);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [adMobConfig.adsEnabled, adMobConfig.interstitialIntervalMinutes, isOffline, isVideoFullscreen]);
 
   // Dismiss Rewarded Video Ad and immediately load the destination page
   const handleRewardedClose = () => {
@@ -176,7 +205,6 @@ export default function App() {
   const handleRetryInternet = () => {
     if (navigator.onLine) {
       setIsOffline(false);
-      // Popup disappears without reloading the page
     } else {
       setIsOffline(true);
     }
@@ -187,7 +215,7 @@ export default function App() {
       {/* Top Loading Progress Indicator */}
       {isLoading && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-transparent z-50 overflow-hidden">
-          <div className="h-full bg-sky-500 animate-pulse w-full duration-700" />
+          <div className="h-full bg-amber-500 animate-pulse w-full duration-700" />
         </div>
       )}
 
@@ -206,19 +234,31 @@ export default function App() {
         />
       </div>
 
-      {/* Floating Control: Fullscreen Toggle & Test Offline Trigger (Hidden during video fullscreen) */}
+      {/* Floating Controls: AdMob/RTDB Info, Fullscreen & Offline Trigger */}
       {!isVideoFullscreen && (
         <div className="absolute top-3 right-3 z-40 flex items-center gap-2">
+          {/* Firebase RTDB AdMob Manager Button */}
+          <button
+            id="admob-rtdb-config-btn"
+            type="button"
+            onClick={() => setShowConfigModal(true)}
+            className="bg-black/75 hover:bg-black/95 text-amber-300 hover:text-amber-200 border border-amber-500/40 p-2 rounded-full backdrop-blur-md text-xs flex items-center gap-1 shadow-lg transition-all cursor-pointer"
+            title="Firebase Realtime Database AdMob Units"
+          >
+            <Database className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline text-[11px] pr-1 font-semibold">AdMob RTDB</span>
+          </button>
+
           {/* Test Offline Simulator Button */}
           <button
             id="simulate-offline-btn"
             type="button"
-            onClick={() => setIsOffline(prev => !prev)}
+            onClick={() => setIsOffline((prev) => !prev)}
             className="bg-black/70 hover:bg-black/90 text-gray-300 hover:text-white border border-gray-700/60 p-2 rounded-full backdrop-blur-md text-xs flex items-center gap-1 shadow-lg transition-all cursor-pointer"
             title="Test No Internet Popup"
           >
             <WifiOff className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline text-[11px] pr-1">Test Offline</span>
+            <span className="hidden sm:inline text-[11px] pr-1">Offline Test</span>
           </button>
 
           {/* Fullscreen Toggle */}
@@ -230,17 +270,20 @@ export default function App() {
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Immersive Fullscreen'}
           >
             {isFullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5 text-sky-400" />
+              <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
             ) : (
-              <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
+              <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
             )}
           </button>
         </div>
       )}
 
-      {/* Persistent Start.io Bottom Banner Ad (Hidden during fullscreen video play) */}
-      {!isVideoFullscreen && !isFullscreen && (
-        <StartIoBanner appId={START_IO_APP_ID} />
+      {/* Persistent AdMob Bottom Banner Ad (Loaded from Firebase RTDB) */}
+      {!isVideoFullscreen && !isFullscreen && adMobConfig.adsEnabled && (
+        <AdMobBanner
+          adUnitId={adMobConfig.bannerAdUnitId}
+          enabled={adMobConfig.adsEnabled}
+        />
       )}
 
       {/* Chrome Custom Tab Modal (Opens when extra/external links are clicked) */}
@@ -256,21 +299,31 @@ export default function App() {
         onClose={() => setIsOffline(false)}
       />
 
-      {/* Fullscreen Rewarded Video Ad (shows on every page open; user skips to reveal page) */}
-      {showRewarded && (
-        <StartIoRewardedVideo
-          appId={START_IO_APP_ID}
+      {/* Fullscreen AdMob Rewarded Video Ad (shows on every page open; user skips to claim/reveal page) */}
+      {showRewarded && adMobConfig.adsEnabled && (
+        <AdMobRewardedVideo
+          adUnitId={adMobConfig.rewardedAdUnitId}
+          enabled={adMobConfig.adsEnabled}
           onClose={handleRewardedClose}
         />
       )}
 
-      {/* Interstitial Ad (shows every 10 minutes) */}
-      {showInterstitial && (
-        <StartIoInterstitial
-          appId={START_IO_APP_ID}
+      {/* Fullscreen AdMob Interstitial Ad (periodic interval based on Firebase RTDB) */}
+      {showInterstitial && adMobConfig.adsEnabled && (
+        <AdMobInterstitial
+          adUnitId={adMobConfig.interstitialAdUnitId}
+          enabled={adMobConfig.adsEnabled}
           onClose={() => setShowInterstitial(false)}
         />
       )}
+
+      {/* Firebase RTDB AdMob Units Inspector / Editor Modal */}
+      <AdMobConfigModal
+        isOpen={showConfigModal}
+        config={adMobConfig}
+        configSource={configSource}
+        onClose={() => setShowConfigModal(false)}
+      />
 
       {/* Cinematic Splash Screen Overlay */}
       {showSplash && (

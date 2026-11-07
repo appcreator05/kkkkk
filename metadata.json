@@ -1,6 +1,6 @@
 {
   "name": "HDSKay WebView",
-  "description": "Movie App full-screen edge-to-edge WebView application for hdskay.blogspot.com featuring Start.io real ads integration, deep linking, native splash screen, and offline No-Internet recovery.",
+  "description": "Movie App full-screen edge-to-edge WebView application for hdskay.blogspot.com featuring Google AdMob ads integration with Firebase Realtime Database dynamic ad units, deep linking, native splash screen, and offline No-Internet recovery.",
   "requestFramePermissions": [
     "camera",
     "microphone",

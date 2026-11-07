@@ -271,9 +271,10 @@ function processHtmlContent(html: string, currentUrl: URL): string {
   // Open external / extra links in Chrome Custom Tab
   function openCustomTab(url) {
     var absUrl = getAbsoluteUrl(url);
-    // 1. If in native Android app with StartApp bridge
-    if (window.AndroidStartApp && typeof window.AndroidStartApp.openCustomTab === 'function') {
-      window.AndroidStartApp.openCustomTab(absUrl);
+    var bridge = window.AndroidAdMob || window.AndroidStartApp;
+    // 1. If in native Android app with AdMob bridge
+    if (bridge && typeof bridge.openCustomTab === 'function') {
+      bridge.openCustomTab(absUrl);
       return;
     }
     // 2. If in Web preview, message parent to open sleek Custom Tab modal
@@ -300,10 +301,11 @@ function processHtmlContent(html: string, currentUrl: URL): string {
     if (!proxied) return;
 
     var absUrl = getAbsoluteUrl(target);
+    var bridge = window.AndroidAdMob || window.AndroidStartApp;
 
     // 1. If running inside Android native app, trigger Rewarded Video Ad via JavaScript bridge!
-    if (window.AndroidStartApp && typeof window.AndroidStartApp.showRewardedVideoForUrl === 'function') {
-      window.AndroidStartApp.showRewardedVideoForUrl(absUrl);
+    if (bridge && typeof bridge.showRewardedVideoForUrl === 'function') {
+      bridge.showRewardedVideoForUrl(absUrl);
       return;
     }
 
@@ -393,12 +395,13 @@ function processHtmlContent(html: string, currentUrl: URL): string {
 
   // Detect Video Fullscreen & Document Fullscreen to hide banner ad & switch orientation
   function notifyFullscreenChange(isFs) {
-    if (window.AndroidStartApp) {
-      if (typeof window.AndroidStartApp.setBannerVisibility === 'function') {
-        window.AndroidStartApp.setBannerVisibility(!isFs);
+    var bridge = window.AndroidAdMob || window.AndroidStartApp;
+    if (bridge) {
+      if (typeof bridge.setBannerVisibility === 'function') {
+        bridge.setBannerVisibility(!isFs);
       }
-      if (typeof window.AndroidStartApp.setVideoFullscreen === 'function') {
-        window.AndroidStartApp.setVideoFullscreen(isFs);
+      if (typeof bridge.setVideoFullscreen === 'function') {
+        bridge.setVideoFullscreen(isFs);
       }
     }
 
@@ -586,12 +589,14 @@ export async function handleProxyRequest(
     }
   } catch (error: any) {
     console.error('Proxy request failed:', error);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        error: 'Proxy Error',
-        message: error?.message || 'Failed to proxy request',
-      })
-    );
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'Proxy Error',
+          message: error?.message || 'Failed to proxy request',
+        })
+      );
+    }
   }
 }
