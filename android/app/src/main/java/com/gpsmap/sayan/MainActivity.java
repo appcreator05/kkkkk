@@ -112,6 +112,14 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        try {
+            androidx.multidex.MultiDex.install(this);
+        } catch (Exception ignored) {}
+    }
+
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
