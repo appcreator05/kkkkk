@@ -85,5 +85,4 @@ dependencies {
 
     // Firebase Realtime Database SDK (Standalone direct connection)
     implementation 'com.google.firebase:firebase-database:21.0.0'
-    implementation 'com.google.firebase:firebase-common:21.0.0'
 }
