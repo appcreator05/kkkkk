@@ -1,0 +1,76 @@
+name: Build Android APK (AdMob & Firebase RTDB)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Release & Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradlew
+        run: |
+          if [ -f "./android/gradlew" ]; then
+            chmod +x ./android/gradlew
+          elif [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
+
+      - name: Create Keystore for Signing
+        run: |
+          cd android
+          if [ ! -f "app/release.keystore" ]; then
+            echo "Generating release keystore..."
+            keytool -genkey -v -keystore app/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=HDSKay, OU=App, O=HDSKay, L=City, S=State, C=US"
+          fi
+          cat <<EOT > app/keystore.properties
+          storeFile=release.keystore
+          storePassword=android
+          keyAlias=androidkey
+          keyPassword=android
+          EOT
+
+      - name: Build Android APK with Gradle
+        run: |
+          cd android
+          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Locate Output APKs
+        run: |
+          echo "=== Built APK Files ==="
+          find android/app/build/outputs/apk/ -name "*.apk" -type f
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HDSKay-Debug-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 90
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HDSKay-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 90

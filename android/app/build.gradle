@@ -1,0 +1,90 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.sayantika.eara'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.sayantika.eara"
+        minSdk 14
+        targetSdk 36
+        versionCode 201
+        versionName "1.5.1"
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    signingConfigs {
+        release {
+            def keystorePropsFile = file('keystore.properties')
+            def rootKeystorePropsFile = rootProject.file('keystore.properties')
+            def props = new Properties()
+
+            if (keystorePropsFile.exists()) {
+                props.load(new FileInputStream(keystorePropsFile))
+            } else if (rootKeystorePropsFile.exists()) {
+                props.load(new FileInputStream(rootKeystorePropsFile))
+            }
+
+            def envStoreFile = System.getenv("KEYSTORE_FILE") ?: props['storeFile']
+            def envStorePassword = System.getenv("KEYSTORE_PASSWORD") ?: props['storePassword']
+            def envKeyAlias = System.getenv("KEY_ALIAS") ?: props['keyAlias']
+            def envKeyPassword = System.getenv("KEY_PASSWORD") ?: props['keyPassword']
+
+            def targetStoreFile = null
+            if (envStoreFile && file(envStoreFile).exists()) {
+                targetStoreFile = file(envStoreFile)
+            } else if (file('release.keystore').exists()) {
+                targetStoreFile = file('release.keystore')
+            } else if (file('android.keystore').exists()) {
+                targetStoreFile = file('android.keystore')
+            } else if (file('keystore.jks').exists()) {
+                targetStoreFile = file('keystore.jks')
+            }
+
+            if (targetStoreFile != null && targetStoreFile.exists()) {
+                storeFile targetStoreFile
+                storePassword envStorePassword ?: 'android'
+                keyAlias envKeyAlias ?: 'androidkey'
+                keyPassword envKeyPassword ?: 'android'
+            } else {
+                initWith(signingConfigs.debug)
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'com.google.android.gms:play-services-ads-identifier:18.2.0'
+
+    // Google Mobile Ads (AdMob) SDK
+    implementation 'com.google.android.gms:play-services-ads:23.6.0'
+
+    // Firebase Realtime Database SDK (Standalone direct connection)
+    implementation 'com.google.firebase:firebase-database:21.0.0'
+    implementation 'com.google.firebase:firebase-common:21.0.0'
+}

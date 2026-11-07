@@ -3,6 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        // AI Studio Environment: HMR is disabled per environment constraints.
+        // Intercept Vite HMR WebSockets to prevent createWebSocketModuleRunnerTransport connection errors.
+        var OrigWebSocket = window.WebSocket;
+        if (OrigWebSocket) {
+          window.WebSocket = function(url, protocols) {
+            var urlStr = String(url || '');
+            if (
+              urlStr.indexOf(window.location.host) !== -1 ||
+              urlStr.indexOf('vite') !== -1 ||
+              urlStr.indexOf('24678') !== -1
+            ) {
+              var dummy = new EventTarget();
+              dummy.binaryType = 'blob';
+              dummy.readyState = 3; // CLOSED
+              dummy.bufferedAmount = 0;
+              dummy.extensions = '';
+              dummy.protocol = '';
+              dummy.url = urlStr;
+              dummy.send = function() {};
+              dummy.close = function() {};
+              return dummy;
+            }
+            return new OrigWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OrigWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+
+        window.addEventListener('error', function(e) {
+          var msg = e && (e.message || '');
+          var src = e && (e.filename || '');
+          if (
+            msg.indexOf('createWebSocketModuleRunnerTransport') !== -1 ||
+            msg.indexOf('WebSocket') !== -1 ||
+            src.indexOf('@vite/client') !== -1
+          ) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e && (e.reason || '');
+          var str = String(reason && (reason.stack || reason.message || reason));
+          if (
+            str.indexOf('createWebSocketModuleRunnerTransport') !== -1 ||
+            str.indexOf('WebSocket') !== -1 ||
+            str.indexOf('@vite/client') !== -1
+          ) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/logo.png" />
     <title>HDSKay WebView</title>
     <meta name="description" content="Movie App full-screen edge-to-edge WebView application for hdskay.blogspot.com featuring Google AdMob ads integration with Firebase Realtime Database dynamic ad units, deep linking, native splash screen, and offline No-Internet recovery." />
