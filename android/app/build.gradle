@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.sayantika.eara'
+    namespace 'com.gpsmap.sayan'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.sayantika.eara"
+        applicationId "com.gpsmap.sayan"
         minSdk 14
         targetSdk 36
         versionCode 201
@@ -76,7 +76,6 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'androidx.browser:browser:1.8.0'
     implementation 'com.google.android.gms:play-services-ads-identifier:18.2.0'

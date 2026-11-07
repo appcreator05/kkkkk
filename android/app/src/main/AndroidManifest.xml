@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.sayantika.eara">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -12,7 +11,7 @@
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <uses-sdk
-        tools:overrideLibrary="com.google.android.gms.ads,com.google.android.gms.ads.impl,com.google.android.gms.ads_identifier,androidx.appcompat,androidx.browser,androidx.webkit,com.google.firebase.database,com.google.firebase,com.google.firebase.common" />
+        tools:overrideLibrary="com.google.android.material,com.google.android.gms.ads,com.google.android.gms.ads.impl,com.google.android.gms.ads_identifier,androidx.appcompat,androidx.browser,androidx.webkit,com.google.firebase.database,com.google.firebase,com.google.firebase.common" />
 
     <application
         android:allowBackup="true"

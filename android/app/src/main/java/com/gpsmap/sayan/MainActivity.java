@@ -1,4 +1,4 @@
-package com.sayantika.eara;
+package com.gpsmap.sayan;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
