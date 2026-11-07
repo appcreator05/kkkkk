@@ -53,8 +53,10 @@ jobs:
 
       - name: Build Android APK with Gradle
         run: |
+          # Purge any stale transforms cache from previous runs to guarantee clean state
+          rm -rf ~/.gradle/caches/transforms-* || true
           cd android
-          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          ./gradlew clean assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Locate Output APKs
         run: |

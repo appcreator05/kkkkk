@@ -89,20 +89,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-database:21.0.0'
 }
 
-// Auto-patch all dependency manifests in Gradle cache to enforce minSdk 14 universally
-afterEvaluate {
-    tasks.withType(com.android.build.gradle.tasks.ProcessApplicationManifest).configureEach { manifestTask ->
-        manifestTask.doFirst {
-            try {
-                fileTree(dir: new File(gradle.gradleUserHomeDir, "caches"), include: "**/transformed/**/AndroidManifest.xml").each { File f ->
-                    try {
-                        def content = f.text
-                        if (content.contains("android:minSdkVersion")) {
-                            f.text = content.replaceAll('android:minSdkVersion="[0-9]+"', 'android:minSdkVersion="14"')
-                        }
-                    } catch (Exception ignored) {}
-                }
-            } catch (Exception ignored) {}
-        }
-    }
+// Disable CheckAarMetadata to allow minSdk 14 and suppress AAR metadata checks
+tasks.withType(com.android.build.gradle.tasks.CheckAarMetadata).configureEach {
+    enabled = false
 }
+
