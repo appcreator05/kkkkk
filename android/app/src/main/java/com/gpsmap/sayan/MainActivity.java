@@ -56,6 +56,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -513,16 +514,21 @@ public class MainActivity extends AppCompatActivity {
             settings.setAllowUniversalAccessFromFileURLs(true);
         }
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // On modern Android (API 33+), AppCache is removed from WebSettings.
+        // Invoke via reflection to maintain backwards compatibility on older Android versions without breaking API 33+ builds.
         try {
             File appCacheDir = new File(getApplicationContext().getCacheDir(), "webcache");
             if (!appCacheDir.exists()) appCacheDir.mkdirs();
-            settings.setAppCachePath(appCacheDir.getAbsolutePath());
-            settings.setAppCacheEnabled(true);
+            Method setAppCachePathMethod = settings.getClass().getMethod("setAppCachePath", String.class);
+            setAppCachePathMethod.invoke(settings, appCacheDir.getAbsolutePath());
+            Method setAppCacheEnabledMethod = settings.getClass().getMethod("setAppCacheEnabled", boolean.class);
+            setAppCacheEnabledMethod.invoke(settings, true);
         } catch (Throwable ignored) {}
         try {
             File dbDir = getApplicationContext().getDir("databases", Context.MODE_PRIVATE);
             if (!dbDir.exists()) dbDir.mkdirs();
-            settings.setDatabasePath(dbDir.getPath());
+            Method setDatabasePathMethod = settings.getClass().getMethod("setDatabasePath", String.class);
+            setDatabasePathMethod.invoke(settings, dbDir.getPath());
         } catch (Throwable ignored) {}
 
         // 7. Location (Geolocation)
@@ -530,7 +536,8 @@ public class MainActivity extends AppCompatActivity {
         try {
             File geoDir = new File(getApplicationContext().getFilesDir(), "geolocation");
             if (!geoDir.exists()) geoDir.mkdirs();
-            settings.setGeolocationDatabasePath(geoDir.getPath());
+            Method setGeoPathMethod = settings.getClass().getMethod("setGeolocationDatabasePath", String.class);
+            setGeoPathMethod.invoke(settings, geoDir.getPath());
         } catch (Throwable ignored) {}
 
         // 8. Viewport, zoom, and forced Android user-agent
