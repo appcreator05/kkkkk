@@ -559,9 +559,11 @@ export async function handleProxyRequest(
       'Content-Type': contentType,
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Credentials': 'true',
       'X-Proxied-By': 'HDSKay-WebView-Core',
       'X-Forced-User-Agent': FORCED_USER_AGENT,
       'X-Final-Target-Url': finalUrl.toString(),
+      'Permissions-Policy': 'camera=*, microphone=*, geolocation=*, autoplay=*, encrypted-media=*, fullscreen=*, display-capture=*',
     };
 
     const setCookie = upstreamResponse.headers.get('set-cookie');

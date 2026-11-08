@@ -1,9 +1,12 @@
 package com.gpsmap.sayan;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -14,16 +17,22 @@ import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -42,7 +51,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.browser.customtabs.CustomTabsIntent;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
@@ -176,6 +192,9 @@ public class MainActivity extends AppCompatActivity {
         buildNoInternetPopup();
         setupSplashScreen();
         setupNetworkMonitoring();
+
+        // Request runtime permissions for camera, microphone, location, downloads
+        requestAppPermissions();
 
         // 4. Initialize Firebase Realtime Database & fetch AdMob Ad Unit IDs
         initFirebaseAndFetchAdUnits();
@@ -456,19 +475,103 @@ public class MainActivity extends AppCompatActivity {
         rootLayout.addView(webView, new RelativeLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        // 1. Third-party cookies & Session cookies configuration
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(webView, true);
+        }
+
         WebSettings settings = webView.getSettings();
+
+        // 2. JavaScript & JavaScript Optimisation & Security
         settings.setJavaScriptEnabled(true);
+        settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setEnableSmoothTransition(true);
+
+        // 3. Pop-up and redirect support
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        settings.setSupportMultipleWindows(true);
+
+        // 4. Sound & Audio Autoplay (No user gesture block)
+        settings.setMediaPlaybackRequiresUserGesture(false);
+
+        // 5. Intrusive ads & Embedded content (Mixed Content: HTTP inside HTTPS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
+        settings.setBlockNetworkImage(false);
+        settings.setBlockNetworkLoads(false);
+
+        // 6. On-device site data, Data Store, Local Storage, IndexedDB & Cache
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            settings.setAllowFileAccessFromFileURLs(true);
+            settings.setAllowUniversalAccessFromFileURLs(true);
+        }
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        try {
+            File appCacheDir = new File(getApplicationContext().getCacheDir(), "webcache");
+            if (!appCacheDir.exists()) appCacheDir.mkdirs();
+            settings.setAppCachePath(appCacheDir.getAbsolutePath());
+            settings.setAppCacheEnabled(true);
+        } catch (Throwable ignored) {}
+        try {
+            File dbDir = getApplicationContext().getDir("databases", Context.MODE_PRIVATE);
+            if (!dbDir.exists()) dbDir.mkdirs();
+            settings.setDatabasePath(dbDir.getPath());
+        } catch (Throwable ignored) {}
+
+        // 7. Location (Geolocation)
+        settings.setGeolocationEnabled(true);
+        try {
+            File geoDir = new File(getApplicationContext().getFilesDir(), "geolocation");
+            if (!geoDir.exists()) geoDir.mkdirs();
+            settings.setGeolocationDatabasePath(geoDir.getPath());
+        } catch (Throwable ignored) {}
+
+        // 8. Viewport, zoom, and forced Android user-agent
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setUserAgentString(FORCED_USER_AGENT);
+
+        // 9. Automatic Download Manager Listener
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    request.setMimeType(mimeType);
+                    String cookies = CookieManager.getInstance().getCookie(url);
+                    request.addRequestHeader("cookie", cookies);
+                    request.addRequestHeader("User-Agent", userAgent);
+                    request.setDescription("Downloading file...");
+                    String filename = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                    request.setTitle(filename);
+                    request.allowScanningByMediaScanner();
+                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+
+                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) {
+                        dm.enqueue(request);
+                        Toast.makeText(MainActivity.this, "Downloading " + filename + "...", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Automatic download fallback: " + e.getMessage());
+                    try {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(i);
+                    } catch (Exception ignored) {}
+                }
+            }
+        });
 
         // JavaScript Bridges: AndroidAdMob & legacy AndroidStartApp
         Object bridgeObj = new Object() {
@@ -538,6 +641,66 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
+            // 10. Microphone, Camera & Protected Content / DRM (RESOURCE_PROTECTED_MEDIA_ID)
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                MainActivity.this.runOnUiThread(() -> {
+                    try {
+                        request.grant(request.getResources());
+                        Log.d(TAG, "WebChromeClient auto-granted permissions: " + Arrays.toString(request.getResources()));
+                    } catch (Exception e) {
+                        Log.w(TAG, "Permission grant failed: " + e.getMessage());
+                    }
+                });
+            }
+
+            // 11. Location (Geolocation Permission Prompt Callback)
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                callback.invoke(origin, true, false);
+                Log.d(TAG, "WebChromeClient auto-granted geolocation for origin: " + origin);
+            }
+
+            // 12. Pop-up and redirect handling (window.open & target="_blank")
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                WebView popWebView = new WebView(MainActivity.this);
+                WebSettings popSettings = popWebView.getSettings();
+                popSettings.setJavaScriptEnabled(true);
+                popSettings.setDomStorageEnabled(true);
+                popSettings.setUserAgentString(FORCED_USER_AGENT);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(popWebView, true);
+                }
+                popWebView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
+                        return handlePopupTarget(req != null && req.getUrl() != null ? req.getUrl().toString() : null);
+                    }
+
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                        return handlePopupTarget(url);
+                    }
+
+                    private boolean handlePopupTarget(String target) {
+                        if (target == null || target.isEmpty()) return false;
+                        if (target.contains("blogspot.com") || target.contains("hdskay")) {
+                            handlePostClick(target);
+                        } else {
+                            openInCustomTabs(target);
+                        }
+                        return true;
+                    }
+                });
+
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(popWebView);
+                resultMsg.sendToTarget();
+                return true;
+            }
+
+            // 13. Embedded Content: Fullscreen HTML5 Video Players & Custom Views
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 if (customVideoView != null) {
@@ -641,8 +804,41 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 hideNoInternetPopup();
+                CookieManager.getInstance().flush();
             }
         });
+    }
+
+    private void requestAppPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            List<String> perms = new ArrayList<>();
+            perms.add(Manifest.permission.CAMERA);
+            perms.add(Manifest.permission.RECORD_AUDIO);
+            perms.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            perms.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
+                perms.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+
+            List<String> needed = new ArrayList<>();
+            for (String p : perms) {
+                if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
+                    needed.add(p);
+                }
+            }
+            if (!needed.isEmpty()) {
+                ActivityCompat.requestPermissions(this, needed.toArray(new String[0]), 101);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Log.d(TAG, "Permissions result: " + Arrays.toString(permissions) + " -> " + Arrays.toString(grantResults));
     }
 
     private void openInCustomTabs(String url) {

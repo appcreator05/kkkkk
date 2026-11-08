@@ -254,8 +254,8 @@ export default function App() {
           title="HDSKay WebView"
           className="w-full h-full border-none m-0 p-0 block"
           style={{ scrollbarWidth: 'none' }}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-pointer-lock allow-orientation-lock allow-presentation allow-top-navigation-by-user-activation"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; camera; microphone; geolocation; display-capture"
           onLoad={() => setIsLoading(false)}
         />
       </div>
