@@ -1,6 +1,6 @@
 {
-  "name": "HDSKay WebView",
-  "description": "Movie App full-screen edge-to-edge WebView application for hdskay.blogspot.com featuring Google AdMob ads integration with Firebase Realtime Database dynamic ad units, deep linking, native splash screen, and offline No-Internet recovery.",
+  "name": "GPS Map Camera",
+  "description": "Capture every moment with real-time GPS location tagging.",
   "requestFramePermissions": [
     "camera",
     "microphone",

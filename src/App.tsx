@@ -251,7 +251,7 @@ export default function App() {
           id="webview-frame"
           ref={iframeRef}
           src={currentUrl}
-          title="HDSKay WebView"
+          title="MovieApp.in"
           className="w-full h-full border-none m-0 p-0 block"
           style={{ scrollbarWidth: 'none' }}
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-pointer-lock allow-orientation-lock allow-presentation allow-top-navigation-by-user-activation"

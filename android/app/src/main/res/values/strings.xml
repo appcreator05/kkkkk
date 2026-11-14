@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">HDSKay</string>
+    <string name="app_name">MovieApp.in</string>
     <string name="no_internet_title">No Internet Connection</string>
     <string name="no_internet_desc">Please check your network connection and retry.</string>
     <string name="retry">Retry</string>

@@ -1,4 +1,4 @@
-# Proguard rules for HDSKay WebView & AdMob & Firebase
+# Proguard rules for MovieApp.in WebView & AdMob & Firebase
 -keepattributes *Annotation*
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;

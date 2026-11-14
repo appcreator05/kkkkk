@@ -82,7 +82,7 @@ import com.google.firebase.database.ValueEventListener;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "HDSKayApp";
+    private static final String TAG = "MovieApp";
     public static final String TARGET_URL = "https://hdskay.blogspot.com";
     public static final String FORCED_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 10; K; AppSecret123) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36";
@@ -225,9 +225,9 @@ public class MainActivity extends AppCompatActivity {
 
             FirebaseApp firebaseApp;
             if (FirebaseApp.getApps(this).isEmpty()) {
-                firebaseApp = FirebaseApp.initializeApp(this, options, "HDSKayFirebase");
+                firebaseApp = FirebaseApp.initializeApp(this, options, "MovieAppFirebase");
             } else {
-                firebaseApp = FirebaseApp.getInstance("HDSKayFirebase");
+                firebaseApp = FirebaseApp.getInstance("MovieAppFirebase");
             }
 
             FirebaseDatabase database = FirebaseDatabase.getInstance(firebaseApp, FIREBASE_RTDB_URL);

@@ -23,7 +23,7 @@ export const CustomTabModal: React.FC<CustomTabModalProps> = ({ url, onClose }) 
     >
       {/* Chrome Custom Tab Top Toolbar */}
       <div className="h-14 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between px-4 text-white select-none shadow-md">
-        {/* Left: Close Button (returns to exact spot on HDSKay) */}
+        {/* Left: Close Button (returns to exact spot on MovieApp.in) */}
         <button
           id="close-custom-tab-btn"
           type="button"
