@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.gpsmap.sayan'
+    namespace 'com.gps.tools'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.gpsmap.sayan"
+        applicationId "com.gps.tools"
         minSdk 21
         targetSdk 36
         versionCode 201
