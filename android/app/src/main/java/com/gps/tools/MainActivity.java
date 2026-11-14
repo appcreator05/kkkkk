@@ -48,6 +48,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.browser.customtabs.CustomTabsIntent;
@@ -131,6 +132,8 @@ public class MainActivity extends AppCompatActivity {
 
     private String pendingUrlToLoad = null;
     private boolean isNavigatingPostAd = false;
+    private WebChromeClient customWebChromeClient;
+    private long lastBackPressTime = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     // Automatic Rewarded Video periodic checker (every 10-15 minutes)
@@ -212,6 +215,14 @@ public class MainActivity extends AppCompatActivity {
                 showNoInternetPopup();
             }
         }
+
+        // 7. Handle Back Button & Predictive Back Gestures cleanly (API 21 - API 36)
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBackNavigation();
+            }
+        });
     }
 
     private void initFirebaseAndFetchAdUnits() {
@@ -639,7 +650,7 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(bridgeObj, "AndroidAdMob");
         webView.addJavascriptInterface(bridgeObj, "AndroidStartApp");
 
-        webView.setWebChromeClient(new WebChromeClient() {
+        customWebChromeClient = new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 if (progressBar != null) {
@@ -760,7 +771,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
-        });
+        };
+
+        webView.setWebChromeClient(customWebChromeClient);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -810,6 +823,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                isNavigatingPostAd = false;
                 hideNoInternetPopup();
                 CookieManager.getInstance().flush();
             }
@@ -989,5 +1003,28 @@ public class MainActivity extends AppCompatActivity {
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
         );
+    }
+
+    private void handleBackNavigation() {
+        // 1. If HTML5 video is playing in fullscreen, exit fullscreen first
+        if (customVideoView != null && customWebChromeClient != null) {
+            customWebChromeClient.onHideCustomView();
+            return;
+        }
+
+        // 2. If WebView has previous pages in history, go back inside the app
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+
+        // 3. Otherwise require double back press within 2 seconds to exit app
+        long now = System.currentTimeMillis();
+        if (now - lastBackPressTime < 2000) {
+            finish();
+        } else {
+            lastBackPressTime = now;
+            Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
+        }
     }
 }
